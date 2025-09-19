@@ -1,0 +1,110 @@
+{
+  "services": {
+    "web_dev": [
+      {
+        "name": "React Dev Server",
+        "type": "http",
+        "url": "http://localhost:3000"
+      },
+      {
+        "name": "Vue Dev Server",
+        "type": "http",
+        "url": "http://localhost:8080"
+      },
+      {
+        "name": "Angular Dev Server",
+        "type": "http",
+        "url": "http://localhost:4200"
+      },
+      {
+        "name": "Next.js Dev Server",
+        "type": "http",
+        "url": "http://localhost:3000"
+      }
+    ],
+    "backend": [
+      {
+        "name": "Express Server",
+        "type": "http",
+        "url": "http://localhost:3000"
+      },
+      {
+        "name": "Django Dev Server",
+        "type": "http",
+        "url": "http://localhost:8000"
+      },
+      {
+        "name": "Flask Dev Server",
+        "type": "http",
+        "url": "http://localhost:5000"
+      },
+      {
+        "name": "FastAPI Server",
+        "type": "http",
+        "url": "http://localhost:8000"
+      },
+      {
+        "name": "Rails Server",
+        "type": "http",
+        "url": "http://localhost:3000"
+      }
+    ],
+    "databases": [
+      {
+        "name": "PostgreSQL",
+        "type": "port",
+        "port": 5432
+      },
+      {
+        "name": "MySQL",
+        "type": "port",
+        "port": 3306
+      },
+      {
+        "name": "MongoDB",
+        "type": "port",
+        "port": 27017
+      },
+      {
+        "name": "Redis",
+        "type": "port",
+        "port": 6379
+      }
+    ],
+    "tools": [
+      {
+        "name": "Docker Engine API",
+        "type": "http",
+        "url": "http://localhost:2375"
+      },
+      {
+        "name": "Elasticsearch",
+        "type": "http",
+        "url": "http://localhost:9200"
+      },
+      {
+        "name": "RabbitMQ Management",
+        "type": "http",
+        "url": "http://localhost:15672"
+      },
+      {
+        "name": "Mailhog",
+        "type": "http",
+        "url": "http://localhost:8025"
+      }
+    ]
+  },
+  "monitoring": {
+    "enabled": true,
+    "check_interval": 60,
+    "alert_thresholds": {
+      "response_time_warning": 2000,
+      "downtime_warning_threshold": 5
+    }
+  },
+  "notifications": {
+    "email_enabled": false,
+    "slack_enabled": false,
+    "webhook_enabled": false
+  }
+}
