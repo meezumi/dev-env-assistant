@@ -115,15 +115,15 @@ def create_config_file():
 
 def main():
     """Main application entry point"""
-    print("🚀 Starting Dev Environment Assistant...")
+    print("Starting Dev Env Fetcher...")
 
     # Setup
     ensure_directories()
     create_config_file()
 
-    print("✅ Setup complete!")
-    print("🌐 Starting web server on http://localhost:5000")
-    print("📊 Access the dashboard at: http://localhost:5000")
+    print("Setup complete!")
+    print("Starting web server on http://localhost:5000")
+    print("Access the dashboard at: http://localhost:5000")
 
     # Start the Flask application
     app.run(debug=True, host="0.0.0.0", port=5000)

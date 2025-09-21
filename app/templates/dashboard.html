@@ -65,6 +65,14 @@
         .service-card {
             position: relative;
             overflow: hidden;
+            min-height: 180px;
+        }
+
+        .service-card .card-body {
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
         }
 
         .service-card::before {
@@ -80,6 +88,53 @@
 
         .service-card:hover::before {
             left: 0;
+        }
+
+        .service-info {
+            flex: 1;
+            margin-bottom: 1rem;
+        }
+
+        .service-actions {
+            margin-top: auto;
+        }
+
+        .service-status-row {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: stretch;
+        }
+
+        .service-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+            justify-content: center;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            min-height: 36px;
+            text-align: center;
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .check-button, .stop-button {
+            min-width: 80px;
+            flex: 1;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
         }
 
         .btn {
@@ -125,14 +180,15 @@
             color: white;
         }
 
-        .status-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.875rem;
-            font-weight: 500;
+        .btn-outline-danger {
+            border: 1px solid var(--accent-danger);
+            color: var(--accent-danger);
+            background: transparent;
+        }
+
+        .btn-outline-danger:hover {
+            background: var(--accent-danger);
+            color: white;
         }
 
         .status-online {
@@ -151,6 +207,12 @@
             background: rgba(251, 133, 0, 0.2);
             color: #fb8500;
             border: 1px solid rgba(251, 133, 0, 0.3);
+        }
+
+        .status-stopped {
+            background: rgba(139, 148, 158, 0.2);
+            color: #8b949e;
+            border: 1px solid rgba(139, 148, 158, 0.3);
         }
 
         .pulse {
@@ -228,7 +290,7 @@
 
         .service-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 1.5rem;
             margin-top: 2rem;
         }
@@ -260,7 +322,6 @@
             font-weight: 500;
         }
 
-        /* Theme-specific elements */
         .page-title {
             color: var(--text-primary);
             transition: color 0.3s ease;
@@ -295,19 +356,74 @@
             transition: color 0.3s ease;
         }
 
+        .status-indicator.status-long-text {
+            font-size: 0.75rem;
+            line-height: 1.2;
+            padding: 0.4rem 0.6rem;
+        }
+
+        .quick-actions .btn {
+            margin: 0.25rem;
+        }
+
         @media (max-width: 768px) {
             .service-grid {
                 grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .service-card {
+                min-height: 160px;
+            }
+            
+            .service-card .card-body {
+                padding: 1.25rem;
+            }
+            
+            .service-status-row {
+                gap: 0.75rem;
+            }
+            
+            .status-indicator {
+                font-size: 0.8rem;
+                padding: 0.4rem 0.6rem;
+                min-height: 32px;
+            }
+            
+            .check-button, .stop-button {
+                min-width: 70px;
+                font-size: 0.8rem;
+                padding: 0.4rem 0.8rem;
             }
             
             .quick-actions {
                 flex-direction: column;
                 align-items: center;
+                gap: 0.75rem;
             }
             
             .quick-actions .btn {
                 width: 100%;
                 max-width: 300px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .service-status-row {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+            
+            .status-indicator {
+                flex: 1;
+                margin-right: 1rem;
+            }
+            
+            .service-buttons {
+                flex-shrink: 0;
+                min-width: 180px;
+                justify-content: flex-end;
             }
         }
     </style>
@@ -317,7 +433,7 @@
         <div class="container">
             <a class="navbar-brand" href="#">
                 <i class="fas fa-rocket me-2"></i>
-                Dev Environment Assistant
+                Dev Env Fetcher
             </a>
             <div class="navbar-nav ms-auto d-flex align-items-center">
                 <button class="theme-toggle me-3" onclick="toggleTheme()">
@@ -427,12 +543,10 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-        // Global state
+    <script>
         let currentTheme = 'dark';
         let isLoading = false;
 
-        // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             initializeTheme();
             loadServices();
@@ -458,7 +572,6 @@
             themeIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
             
             if (theme === 'light') {
-                // Light theme colors
                 document.documentElement.style.setProperty('--bg-primary', '#ffffff');
                 document.documentElement.style.setProperty('--bg-secondary', '#f6f8fa');
                 document.documentElement.style.setProperty('--bg-tertiary', '#ffffff');
@@ -467,13 +580,11 @@
                 document.documentElement.style.setProperty('--border-color', '#d0d7de');
                 document.documentElement.style.setProperty('--shadow', '0 8px 32px rgba(0, 0, 0, 0.1)');
                 
-                // Update body background for light theme
                 document.body.style.backgroundImage = `
                     radial-gradient(circle at 20% 80%, rgba(31, 111, 235, 0.05) 0%, transparent 50%),
                     radial-gradient(circle at 80% 20%, rgba(35, 134, 54, 0.05) 0%, transparent 50%)
                 `;
             } else {
-                // Dark theme colors
                 document.documentElement.style.setProperty('--bg-primary', '#0d1117');
                 document.documentElement.style.setProperty('--bg-secondary', '#161b22');
                 document.documentElement.style.setProperty('--bg-tertiary', '#21262d');
@@ -482,7 +593,6 @@
                 document.documentElement.style.setProperty('--border-color', '#30363d');
                 document.documentElement.style.setProperty('--shadow', '0 8px 32px rgba(0, 0, 0, 0.3)');
                 
-                // Update body background for dark theme
                 document.body.style.backgroundImage = `
                     radial-gradient(circle at 20% 80%, rgba(31, 111, 235, 0.1) 0%, transparent 50%),
                     radial-gradient(circle at 80% 20%, rgba(35, 134, 54, 0.1) 0%, transparent 50%)
@@ -506,7 +616,7 @@
                 if (text && text !== button) {
                     const originalText = text.textContent;
                     text.setAttribute('data-original-text', originalText);
-                    text.textContent = 'Testing...';
+                    text.textContent = button.classList.contains('stop-button') ? 'Stopping...' : 'Testing...';
                 }
             }
         }
@@ -575,24 +685,37 @@
                         html += `
                             <div class="card service-card fade-in">
                                 <div class="card-body">
-                                    <h6 class="card-title mb-3">
-                                        <i class="fas ${getServiceIcon(service.type)} me-2"></i>
-                                        ${service.name}
-                                    </h6>
-                                    <p class="text-secondary small mb-3">
-                                        ${service.type === 'http' ? service.url : `Port ${service.port}`}
-                                    </p>
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span class="status-indicator status-checking" id="status-${getServiceId(service)}">
-                                            <i class="fas fa-clock"></i>
-                                            Ready
-                                        </span>
-                                        <button class="btn btn-outline-primary btn-sm check-btn" 
-                                                data-service='${JSON.stringify(service)}'
-                                                onclick="checkSingleService(this)">
-                                            <i class="fas fa-play me-1"></i>
-                                            <span>Check</span>
-                                        </button>
+                                    <div class="service-info">
+                                        <h6 class="card-title mb-3">
+                                            <i class="fas ${getServiceIcon(service.type)} me-2"></i>
+                                            ${service.name}
+                                        </h6>
+                                        <p class="text-secondary small mb-0">
+                                            ${service.type === 'http' ? service.url : `Port ${service.port}`}
+                                        </p>
+                                    </div>
+                                    <div class="service-actions">
+                                        <div class="service-status-row">
+                                            <span class="status-indicator status-checking" id="status-${getServiceId(service)}">
+                                                <i class="fas fa-clock"></i>
+                                                Ready
+                                            </span>
+                                            <div class="service-buttons">
+                                                <button class="btn btn-outline-primary btn-sm check-button" 
+                                                        data-service='${JSON.stringify(service)}'
+                                                        onclick="checkSingleService(this)">
+                                                    <i class="fas fa-play me-1"></i>
+                                                    <span>Check</span>
+                                                </button>
+                                                <button class="btn btn-outline-danger btn-sm stop-button" 
+                                                        data-service='${JSON.stringify(service)}'
+                                                        onclick="stopSingleService(this)"
+                                                        style="display: none;">
+                                                    <i class="fas fa-stop me-1"></i>
+                                                    <span>Stop</span>
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -626,7 +749,6 @@
                 
                 console.log('Checking service:', service);
                 
-                // Update UI to show checking state
                 updateServiceStatus(statusElement, 'checking', 'Checking...');
                 showLoading(button);
                 
@@ -675,16 +797,125 @@
             }
         }
 
+        function stopSingleService(button) {
+            try {
+                const service = JSON.parse(button.dataset.service);
+                
+                console.log('Stopping service:', service);
+                
+                const confirmStop = confirm(`Are you sure you want to stop "${service.name}"?\n\nThis will terminate the running process.`);
+                if (!confirmStop) {
+                    return;
+                }
+                
+                showLoading(button);
+                
+                let endpoint, data;
+                
+                if (service.type === 'port') {
+                    endpoint = '/api/stop/port';
+                    data = { port: service.port };
+                } else if (service.type === 'http') {
+                    try {
+                        const url = new URL(service.url);
+                        const port = url.port || (url.protocol === 'https:' ? 443 : 80);
+                        endpoint = '/api/stop/port';
+                        data = { port: parseInt(port) };
+                    } catch (e) {
+                        throw new Error('Invalid URL format');
+                    }
+                } else if (service.docker_container) {
+                    endpoint = '/api/stop/docker';
+                    data = { container: service.docker_container };
+                } else if (service.process_name) {
+                    endpoint = '/api/stop/name';
+                    data = { name: service.process_name };
+                } else {
+                    throw new Error(`Cannot determine how to stop service of type: ${service.type}`);
+                }
+                
+                console.log('Making stop request to:', endpoint, 'with data:', data);
+                
+                fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(response => {
+                    console.log('Stop response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    console.log('Stop service result:', result);
+                    hideLoading(button, 'Stop');
+                    
+                    if (result.success) {
+                        showStopResult(service.name, result.message, 'success');
+                        
+                        button.style.display = 'none';
+                        const statusElement = document.getElementById(`status-${getServiceId(service)}`);
+                        updateServiceStatus(statusElement, 'stopped', 'Stopped');
+                        
+                        setTimeout(() => {
+                            const checkButton = button.parentElement.querySelector('.check-button');
+                            if (checkButton) {
+                                checkSingleService(checkButton);
+                            }
+                        }, 2000);
+                    } else {
+                        showStopResult(service.name, result.message, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error stopping service:', error);
+                    hideLoading(button, 'Stop');
+                    showStopResult(service.name, `Error: ${error.message}`, 'error');
+                });
+            } catch (error) {
+                console.error('Error in stopSingleService:', error);
+                hideLoading(button, 'Stop');
+                showStopResult('Service', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        function showStopResult(serviceName, message, type) {
+            const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+            const iconClass = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle';
+            
+            const alertHtml = `
+                <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                    <i class="fas ${iconClass} me-2"></i>
+                    <strong>${serviceName}:</strong> ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            const container = document.getElementById('services-container');
+            container.insertAdjacentHTML('afterbegin', alertHtml);
+            
+            setTimeout(() => {
+                const alert = container.querySelector('.alert');
+                if (alert) {
+                    alert.remove();
+                }
+            }, 5000);
+        }
+
         function updateServiceStatus(element, status, text) {
             if (!element) {
                 console.warn('Status element not found');
                 return;
             }
             
-            // Clear all existing classes except the base class
             element.className = 'status-indicator';
             
-            // Define status classes (without spaces)
+            if (text.length > 20) {
+                element.classList.add('status-long-text');
+            }
+            
             const statusClasses = {
                 'open': 'status-online',
                 'up': 'status-online',
@@ -692,21 +923,19 @@
                 'closed': 'status-offline',
                 'down': 'status-offline',
                 'offline': 'status-offline',
+                'stopped': 'status-stopped',
                 'checking': 'status-checking',
                 'error': 'status-offline',
                 'timeout': 'status-offline'
             };
             
-            // Add the appropriate status class
             const statusClass = statusClasses[status] || 'status-offline';
             element.classList.add(statusClass);
             
-            // Add pulse animation for checking state
             if (status === 'checking') {
                 element.classList.add('pulse');
             }
             
-            // Update icon and text
             const icons = {
                 'open': 'fa-check-circle',
                 'up': 'fa-check-circle',
@@ -714,12 +943,30 @@
                 'closed': 'fa-times-circle',
                 'down': 'fa-times-circle',
                 'offline': 'fa-times-circle',
+                'stopped': 'fa-stop-circle',
                 'checking': 'fa-spinner fa-spin',
                 'error': 'fa-exclamation-triangle',
                 'timeout': 'fa-clock'
             };
             
-            element.innerHTML = `<i class="fas ${icons[status] || 'fa-question-circle'}"></i> ${text}`;
+            let displayText = text;
+            if (text.length > 30) {
+                displayText = text.substring(0, 27) + '...';
+                element.title = text;
+            }
+            
+            element.innerHTML = `<i class="fas ${icons[status] || 'fa-question-circle'}"></i> ${displayText}`;
+            
+            const serviceCard = element.closest('.service-card');
+            const stopButton = serviceCard.querySelector('.stop-button');
+            
+            if (stopButton) {
+                if (status === 'open' || status === 'up' || status === 'online') {
+                    stopButton.style.display = 'inline-block';
+                } else {
+                    stopButton.style.display = 'none';
+                }
+            }
         }
 
         function getStatusText(result) {
@@ -771,7 +1018,6 @@
                     displayResult(data);
                     hideLoading(button, 'Scan All Services');
                     
-                    // Update individual service cards with results
                     if (data.services) {
                         data.services.forEach(result => {
                             updateServiceCardStatus(result);
@@ -786,7 +1032,6 @@
         }
 
         function updateServiceCardStatus(result) {
-            // Find the service card that matches this result
             const serviceCards = document.querySelectorAll('.service-card');
             serviceCards.forEach(card => {
                 const titleElement = card.querySelector('.card-title');

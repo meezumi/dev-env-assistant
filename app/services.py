@@ -1,6 +1,10 @@
 import socket
 import time
 import threading
+import subprocess
+import psutil
+import signal
+import os
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
@@ -16,6 +20,197 @@ DEFAULT_TIMEOUT = 5.0
 MAX_WORKERS = 10
 HISTORY_RETENTION_HOURS = 24
 
+
+class ServiceManager:
+    """Manages starting and stopping services"""
+
+    def __init__(self):
+        self.managed_processes = {}  # Store process references
+
+    def find_process_by_port(self, port: int) -> Optional[psutil.Process]:
+        """Find process using a specific port"""
+        try:
+            for proc in psutil.process_iter(["pid", "name", "connections"]):
+                try:
+                    connections = proc.info["connections"]
+                    if connections:
+                        for conn in connections:
+                            if conn.laddr.port == port:
+                                return psutil.Process(proc.info["pid"])
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+        except Exception as e:
+            print(f"Error finding process on port {port}: {e}")
+        return None
+
+    def find_processes_by_name(self, name: str) -> List[psutil.Process]:
+        """Find processes by name pattern"""
+        processes = []
+        try:
+            for proc in psutil.process_iter(["pid", "name", "cmdline"]):
+                try:
+                    proc_info = proc.info
+                    if name.lower() in proc_info["name"].lower() or any(
+                        name.lower() in arg.lower()
+                        for arg in (proc_info["cmdline"] or [])
+                    ):
+                        processes.append(psutil.Process(proc_info["pid"]))
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+        except Exception as e:
+            print(f"Error finding processes by name {name}: {e}")
+        return processes
+
+    def stop_service_by_port(self, port: int) -> Dict[str, Any]:
+        """Stop service running on a specific port"""
+        try:
+            process = self.find_process_by_port(port)
+            if not process:
+                return {
+                    "success": False,
+                    "message": f"No process found running on port {port}",
+                }
+
+            process_info = {
+                "pid": process.pid,
+                "name": process.name(),
+                "cmdline": " ".join(process.cmdline()),
+            }
+
+            # Try graceful shutdown first
+            process.terminate()
+
+            # Wait for process to terminate
+            try:
+                process.wait(timeout=5)
+                return {
+                    "success": True,
+                    "message": f'Successfully stopped process {process_info["name"]} (PID: {process_info["pid"]}) on port {port}',
+                    "process_info": process_info,
+                }
+            except psutil.TimeoutExpired:
+                # Force kill if graceful shutdown failed
+                process.kill()
+                return {
+                    "success": True,
+                    "message": f'Force killed process {process_info["name"]} (PID: {process_info["pid"]}) on port {port}',
+                    "process_info": process_info,
+                }
+
+        except psutil.NoSuchProcess:
+            return {
+                "success": False,
+                "message": f"Process on port {port} no longer exists",
+            }
+        except psutil.AccessDenied:
+            return {
+                "success": False,
+                "message": f"Access denied: Cannot stop process on port {port} (try running as administrator)",
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Error stopping service on port {port}: {str(e)}",
+            }
+
+    def stop_service_by_name(self, service_name: str) -> Dict[str, Any]:
+        """Stop service by name/pattern"""
+        try:
+            processes = self.find_processes_by_name(service_name)
+            if not processes:
+                return {
+                    "success": False,
+                    "message": f'No processes found matching "{service_name}"',
+                }
+
+            stopped_processes = []
+            errors = []
+
+            for process in processes:
+                try:
+                    process_info = {
+                        "pid": process.pid,
+                        "name": process.name(),
+                        "cmdline": " ".join(process.cmdline()),
+                    }
+
+                    process.terminate()
+                    try:
+                        process.wait(timeout=3)
+                        stopped_processes.append(process_info)
+                    except psutil.TimeoutExpired:
+                        process.kill()
+                        stopped_processes.append({**process_info, "force_killed": True})
+
+                except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+                    errors.append(f"PID {process.pid}: {str(e)}")
+
+            if stopped_processes:
+                return {
+                    "success": True,
+                    "message": f'Stopped {len(stopped_processes)} process(es) matching "{service_name}"',
+                    "stopped_processes": stopped_processes,
+                    "errors": errors if errors else None,
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": f'Failed to stop any processes matching "{service_name}"',
+                    "errors": errors,
+                }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f'Error stopping service "{service_name}": {str(e)}',
+            }
+
+    def stop_docker_container(self, container_name: str) -> Dict[str, Any]:
+        """Stop Docker container"""
+        try:
+            # Check if Docker is available
+            result = subprocess.run(
+                ["docker", "--version"], capture_output=True, text=True, timeout=5
+            )
+            if result.returncode != 0:
+                return {
+                    "success": False,
+                    "message": "Docker is not available on this system",
+                }
+
+            # Stop the container
+            result = subprocess.run(
+                ["docker", "stop", container_name],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode == 0:
+                return {
+                    "success": True,
+                    "message": f'Successfully stopped Docker container "{container_name}"',
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": f'Failed to stop Docker container "{container_name}": {result.stderr}',
+                }
+
+        except subprocess.TimeoutExpired:
+            return {
+                "success": False,
+                "message": f'Timeout stopping Docker container "{container_name}"',
+            }
+        except FileNotFoundError:
+            return {"success": False, "message": "Docker command not found"}
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f'Error stopping Docker container "{container_name}": {str(e)}',
+            }
+
+
 class ServiceHistory:
     def __init__(self):
         self.history: Dict[str, List[ServiceResult]] = defaultdict(list)
@@ -23,29 +218,32 @@ class ServiceHistory:
 
     def add_result(self, result: ServiceResult):
         with self.lock:
-            self.history[result.name].append(result)
-            # Keep only recent history
-            cutoff = datetime.now() - timedelta(hours=HISTORY_RETENTION_HOURS)
-            self.history[result.name] = [
-                r for r in self.history[result.name]
-                if r.last_checked > cutoff
+            service_name = result.name
+            self.history[service_name].append(result)
+
+            # Clean old entries
+            cutoff_time = datetime.now() - timedelta(hours=HISTORY_RETENTION_HOURS)
+            self.history[service_name] = [
+                r
+                for r in self.history[service_name]
+                if r.timestamp and datetime.fromtimestamp(r.timestamp) > cutoff_time
             ]
 
     def get_history(self, service_name: str, limit: int = 50) -> List[ServiceResult]:
         with self.lock:
-            return self.history[service_name][-limit:]
+            return self.history.get(service_name, [])[-limit:]
 
     def get_uptime_percentage(self, service_name: str, hours: int = 24) -> float:
         with self.lock:
-            recent_results = [
-                r for r in self.history[service_name][-100:]  # Last 100 checks
-                if r.last_checked > datetime.now() - timedelta(hours=hours)
-            ]
+            recent_results = self.get_history(service_name, 100)
             if not recent_results:
                 return 0.0
 
-            successful = sum(1 for r in recent_results if r.status in ["open", "up", "online"])
-            return (successful / len(recent_results)) * 100
+            successful_checks = len(
+                [r for r in recent_results if r.status in ["up", "open"]]
+            )
+
+            return (successful_checks / len(recent_results)) * 100
 
 
 class EnhancedServiceChecker:
@@ -54,295 +252,175 @@ class EnhancedServiceChecker:
     def __init__(self):
         self.history = ServiceHistory()
         self.executor = ThreadPoolExecutor(max_workers=MAX_WORKERS)
+        self.manager = ServiceManager()
 
     def get_port_description(self, port: int) -> str:
         """Get detailed description for a port including common services"""
-        port_info = {
-            22: "SSH (Secure Shell) - Remote secure access to system",
-            25: "SMTP (Simple Mail Transfer Protocol) - Email sending",
-            53: "DNS (Domain Name System) - Domain name resolution",
-            80: "HTTP (Hypertext Transfer Protocol) - Web server",
-            110: "POP3 (Post Office Protocol) - Email retrieval",
-            143: "IMAP (Internet Message Access Protocol) - Email access",
-            443: "HTTPS (HTTP Secure) - Secure web server",
-            587: "SMTP (Submission) - Authenticated email sending",
-            993: "IMAPS - Secure IMAP (email retrieval over SSL/TLS)",
-            995: "POP3S - Secure POP3 (email retrieval over SSL/TLS)",
-            3306: "MySQL Database Server - Relational database service",
-            5432: "PostgreSQL Database Server - Advanced SQL database",
-            27017: "MongoDB Database Server - NoSQL document database",
-            6379: "Redis Cache Server - In-memory data structure store",
-            9200: "Elasticsearch Search Engine - Full-text search and analytics",
-            15672: "RabbitMQ Management - Message broker admin interface",
-            8080: "HTTP Alternate - Common for development web servers",
-            3000: "React/Express Development Server - Node.js applications",
-            4000: "Next.js Development Server - React framework",
-            4200: "Angular Development Server - Google framework",
-            5000: "Flask Development Server - Python web framework",
-            8000: "Django/FastAPI Development Server - Python frameworks",
-            8025: "MailHog Web UI - Email testing tool for development",
-            8081: "Alternative HTTP - Secondary web server port",
-            9000: "PHP Development Server - Primary PHP development port",
-            9080: "WebSphere Application Server - Java EE server (default)",
+        common_ports = {
+            21: "FTP - File Transfer Protocol",
+            22: "SSH - Secure Shell",
+            23: "Telnet",
+            25: "SMTP - Simple Mail Transfer Protocol",
+            53: "DNS - Domain Name System",
+            80: "HTTP - HyperText Transfer Protocol",
+            110: "POP3 - Post Office Protocol v3",
+            143: "IMAP - Internet Message Access Protocol",
+            443: "HTTPS - HTTP Secure",
+            993: "IMAPS - IMAP over SSL",
+            995: "POP3S - POP3 over SSL",
+            3000: "Node.js Development Server",
+            3001: "React Development Server (Alt)",
+            4200: "Angular Development Server",
+            5000: "Flask Development Server",
+            5432: "PostgreSQL Database",
+            6379: "Redis Database",
+            8000: "Django Development Server / HTTP Alt",
+            8080: "HTTP Alternative / Tomcat",
+            9000: "PHP-FPM / SonarQube",
+            27017: "MongoDB Database",
+            3306: "MySQL/MariaDB Database",
         }
 
-        base_info = port_info.get(port, f"Port {port} - Custom/Application Specific Service")
-        applications = [
-            "Development servers", "Database systems", "Message brokers",
-            "Search engines", "Mail servers", "Cache systems", "Web services"
-        ]
-        return f"{base_info} | Category: {' | '.join(applications)}"
+        if port in common_ports:
+            return f"Port {port} - {common_ports[port]}"
+        elif 3000 <= port <= 3999:
+            return f"Port {port} - Likely Development Server"
+        elif 8000 <= port <= 8999:
+            return f"Port {port} - Likely Web Server/API"
+        else:
+            return f"Port {port} - Custom Service"
 
-    def check_port_service(self, host: str, port: int, timeout: float = DEFAULT_TIMEOUT) -> ServiceResult:
-        """Check if a port is open with detailed information"""
-        result = ServiceResult(
-            name=f"Port {port} Service Check",
-            type="port",
-            host=host,
-            port=port,
-            status="checking"
-        )
+    def check_port_service(
+        self, host: str, port: int, timeout: float = DEFAULT_TIMEOUT
+    ) -> ServiceResult:
+        start_time = time.time()
+        description = self.get_port_description(port)
 
         try:
-            start_time = time.time()
-            sock = socket.create_connection((host, port), timeout)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(timeout)
+            result = sock.connect_ex((host, port))
+            sock.close()
+
             response_time = (time.time() - start_time) * 1000
 
-            # Try to get service information
-            try:
-                peer_info = sock.getpeername()
-                local_info = sock.getsockname()
-                sock.close()
-
-                result.status = "open"
-                result.response_time = round(response_time, 2)
-                result.additional_info = {
-                    "description": self.get_port_description(port),
-                    "peer_address": f"{peer_info[0]}:{peer_info[1]}",
-                    "local_address": f"{local_info[0]}:{local_info[1]}",
-                    "connection_established": True
-                }
-                result.error_message = None
-            except Exception:
-                sock.close()
-                raise
+            if result == 0:
+                status = "open"
+                details = f"{description} is accessible"
+                error_message = None
+            else:
+                status = "closed"
+                details = f"{description} is not accessible"
+                error_message = f"Connection refused to {host}:{port}"
 
         except socket.timeout:
-            result.status = "timeout"
-            result.error_message = f"Connection timeout after {timeout}s"
-            result.additional_info = {
-                "description": self.get_port_description(port),
-                "timeout_reason": "No response within configured timeout"
-            }
-        except socket.gaierror as e:
-            result.status = "error"
-            result.error_message = f"DNS resolution failed: {str(e)}"
-            result.additional_info = {
-                "description": self.get_port_description(port),
-                "dns_error": True
-            }
-        except ConnectionRefusedError:
-            result.status = "closed"
-            result.error_message = "Connection refused - service not running or blocking connections"
-            result.additional_info = {
-                "description": self.get_port_description(port),
-                "connection_refused": True
-            }
+            response_time = timeout * 1000
+            status = "timeout"
+            details = f"{description} - Connection timeout"
+            error_message = f"Timeout connecting to {host}:{port} after {timeout}s"
         except Exception as e:
-            result.status = "error"
-            result.error_message = f"Network error: {str(e)}"
-            result.additional_info = {
-                "description": self.get_port_description(port),
-                "unknown_error": True
-            }
+            response_time = (time.time() - start_time) * 1000
+            status = "error"
+            details = f"{description} - Connection error"
+            error_message = str(e)
+
+        result = ServiceResult(
+            name=f"Port {port} Service Check",
+            status=status,
+            response_time=response_time,
+            error_message=error_message,
+            details=details,
+            timestamp=time.time(),
+        )
 
         self.history.add_result(result)
         return result
 
-    def check_http_service(self, url: str, timeout: float = DEFAULT_TIMEOUT,
-                          expected_status: Optional[int] = None,
-                          method: str = "GET") -> ServiceResult:
-        """Check HTTP service with comprehensive diagnostics"""
+    def check_http_service(
+        self,
+        url: str,
+        timeout: float = DEFAULT_TIMEOUT,
+        expected_status: Optional[int] = None,
+        method: str = "GET",
+    ) -> ServiceResult:
+        start_time = time.time()
         parsed = urlparse(url)
-        result = ServiceResult(
-            name=f"HTTP Service: {url}",
-            type="http",
-            url=url,
-            status="checking"
-        )
 
         try:
-            start_time = time.time()
-            response = requests.request(
-                method=method,
-                url=url,
-                timeout=timeout,
-                allow_redirects=True,
-                headers={"User-Agent": "DevEnvironmentAssitant/1.0"}
-            )
+            response = requests.request(method, url, timeout=timeout)
             response_time = (time.time() - start_time) * 1000
 
-            status_ok = True
-            if expected_status and response.status_code != expected_status:
-                status_ok = False
+            expected = expected_status or 200
 
-            result.status = "up" if status_ok else "unhealthy"
-            result.response_time = round(response_time, 2)
-            result.status_code = response.status_code
-
-            result.additional_info = {
-                "description": self._get_http_description(parsed, response),
-                "headers_count": len(response.headers),
-                "content_length": len(response.text),
-                "encoding": response.encoding,
-                "redirect_history": len(response.history),
-                "final_url": response.url,
-                "is_https": parsed.scheme == "https",
-                "domain": parsed.netloc
-            }
-            result.error_message = None
-
-            # HTTP headers analysis
-            security_headers = {
-                "X-Content-Type-Options": response.headers.get("X-Content-Type-Options"),
-                "Content-Security-Policy": response.headers.get("Content-Security-Policy") is not None,
-                "X-Frame-Options": response.headers.get("X-Frame-Options"),
-                "Strict-Transport-Security": response.headers.get("Strict-Transport-Security") is not None
-            }
-            result.additional_info["security_headers"] = security_headers
+            if response.status_code == expected:
+                status = "up"
+                error_message = None
+                details = self._get_http_description(parsed, response)
+            else:
+                status = "down"
+                error_message = (
+                    f"Expected status {expected}, got {response.status_code}"
+                )
+                details = (
+                    f"HTTP service returned unexpected status: {response.status_code}"
+                )
 
         except requests.exceptions.Timeout:
-            result.status = "timeout"
-            result.error_message = f"HTTP request timed out after {timeout}s"
-            result.additional_info = {
-                "description": f"HTTP service at {url} - timeout occurred",
-                "timeout_value": timeout
-            }
+            response_time = timeout * 1000
+            status = "timeout"
+            error_message = f"Request timeout after {timeout}s"
+            details = f"HTTP service at {parsed.netloc} timed out"
         except requests.exceptions.ConnectionError:
-            result.status = "down"
-            result.error_message = "Connection failed - service unreachable"
-            result.additional_info = {
-                "description": f"HTTP service at {url} - connection failed",
-                "connection_error": True
-            }
-        except requests.exceptions.HTTPError as e:
-            result.status = "error"
-            result.status_code = e.response.status_code if hasattr(e, 'response') else None
-            result.error_message = f"HTTP error: {str(e)}"
-            result.additional_info = {
-                "description": f"HTTP service at {url} - HTTP error occurred"
-            }
+            response_time = (time.time() - start_time) * 1000
+            status = "down"
+            error_message = "Connection refused"
+            details = f"Cannot connect to HTTP service at {parsed.netloc}"
         except Exception as e:
-            result.status = "error"
-            result.error_message = f"HTTP service error: {str(e)}"
-            result.additional_info = {
-                "description": f"HTTP service at {url} - general error occurred"
-            }
+            response_time = (time.time() - start_time) * 1000
+            status = "error"
+            error_message = str(e)
+            details = f"Error checking HTTP service at {parsed.netloc}"
+
+        result = ServiceResult(
+            name=f"HTTP Service: {url}",
+            status=status,
+            response_time=response_time,
+            error_message=error_message,
+            details=details,
+            timestamp=time.time(),
+        )
 
         self.history.add_result(result)
         return result
 
     def _get_http_description(self, parsed: urlparse, response) -> str:
-        """Generate descriptive information for HTTP services"""
-        port_info = ""
-        if parsed.port:
-            port_info = f":{parsed.port}"
-
-        descriptions = {
-            3000: "React Development Server - Frontend JavaScript framework development",
-            4000: "Next.js Development Server - Full-stack React framework",
-            4200: "Angular Development Server - Enterprise TypeScript framework",
-            5000: "Flask Development Server - Python micro web framework",
-            8000: "Django/FastAPI Development Server - Python web frameworks",
-            8080: "Alternative Web Server - Development and production alternatives",
-            9200: "Elasticsearch REST API - Search and analytics engine",
-            15672: "RabbitMQ Management Interface - Message broker management",
-            2375: "Docker Engine API - Container runtime management",
-            8025: "MailHog Web Interface - Email testing tool"
-        }
-
-        base_desc = descriptions.get(parsed.port or 80,
-                                   f"HTTP Service on {parsed.hostname}{port_info}")
-
-        if response:
-            content_type = response.headers.get('content-type', '').lower()
-            if 'json' in content_type:
-                base_desc += " | API Endpoint (JSON)"
-            elif 'html' in content_type:
-                base_desc += " | Web Application"
-            elif 'xml' in content_type:
-                base_desc += " | XML API Service"
-            else:
-                base_desc += " | Generic HTTP Service"
-
-        return base_desc
+        try:
+            server = response.headers.get("Server", "Unknown")
+            content_type = response.headers.get("Content-Type", "Unknown")
+            return f"HTTP service at {parsed.netloc} is responding (Server: {server}, Content-Type: {content_type})"
+        except:
+            return f"HTTP service at {parsed.netloc} is responding"
 
     def check_multiple_services(self, services: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Check multiple services concurrently with detailed reporting"""
         results = []
-        futures = []
 
-        # Submit all checks concurrently
         for service in services:
-            if service.get("type") == "port":
-                future = self.executor.submit(
-                    self.check_port_service,
-                    service.get("host", "localhost"),
-                    service["port"],
-                    service.get("timeout", DEFAULT_TIMEOUT)
+            if service.get("type") == "http":
+                result = self.check_http_service(service["url"])
+            elif service.get("type") == "port":
+                result = self.check_port_service(
+                    service.get("host", "localhost"), service["port"]
                 )
-                futures.append((future, service))
-            elif service.get("type") == "http":
-                future = self.executor.submit(
-                    self.check_http_service,
-                    service["url"],
-                    service.get("timeout", DEFAULT_TIMEOUT),
-                    service.get("expected_status"),
-                    service.get("method", "GET")
-                )
-                futures.append((future, service))
+            else:
+                continue
 
-        # Collect results
-        all_healthy = True
-        for future, service in futures:
-            try:
-                result = future.result(timeout=30)
-                results.append(asdict(result))
-
-                if result.status not in ["open", "up", "online"]:
-                    all_healthy = False
-            except Exception as e:
-                error_result = ServiceResult(
-                    name=service.get("name", f"Error checking {service.get('type', 'unknown')}"),
-                    type=service.get("type", "unknown"),
-                    status="error",
-                    error_message=str(e),
-                    additional_info={"executor_error": True}
-                )
-                results.append(asdict(error_result))
-                all_healthy = False
-
-        # Generate statistics
-        status_counts = defaultdict(int)
-        response_times = []
-
-        for result in results:
-            status_counts[result["status"]] += 1
-            if result.get("response_time"):
-                response_times.append(result["response_time"])
-
-        avg_response_time = sum(response_times) / len(response_times) if response_times else None
+            results.append(result.to_dict())
 
         return {
-            "overall_status": "healthy" if all_healthy else "unhealthy",
+            "total_services": len(results),
+            "online_services": len(
+                [r for r in results if r["status"] in ["up", "open"]]
+            ),
             "services": results,
-            "statistics": {
-                "total_services": len(results),
-                "healthy_count": sum(1 for r in results if r["status"] in ["open", "up", "online"]),
-                "unhealthy_count": sum(1 for r in results if r["status"] not in ["open", "up", "online"]),
-                "status_distribution": dict(status_counts),
-                "average_response_time_ms": round(avg_response_time, 2) if avg_response_time else None
-            },
-            "summary": f"{len([r for r in results if r['status'] in ['open', 'up', 'online']])}/{len(results)} services healthy",
-            "timestamp": datetime.now().isoformat()
+            "timestamp": time.time(),
         }

@@ -5,7 +5,7 @@ from app import app, checker, config
 @app.route("/")
 def dashboard():
     """Main dashboard page"""
-    return render_template("dashboard.html", title="Dev Environment Assistant")
+    return render_template("dashboard.html", title="Dev Env Fetcher")
 
 
 @app.route("/api/check/<service_type>", methods=["POST"])
@@ -53,6 +53,57 @@ def check_service(service_type):
     except Exception as e:
         print(f"Error in check_service: {str(e)}")
         return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
+
+@app.route("/api/stop/<service_type>", methods=["POST"])
+def stop_service(service_type):
+    """API endpoint for stopping services"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        if service_type == "port":
+            port = data.get("port")
+
+            if not port:
+                return jsonify({"error": "Port is required"}), 400
+
+            try:
+                port = int(port)
+            except (TypeError, ValueError):
+                return jsonify({"error": "Port must be a number"}), 400
+
+            result = checker.manager.stop_service_by_port(port)
+            return jsonify(result)
+
+        elif service_type == "name":
+            service_name = data.get("name")
+
+            if not service_name:
+                return jsonify({"error": "Service name is required"}), 400
+
+            result = checker.manager.stop_service_by_name(service_name)
+            return jsonify(result)
+
+        elif service_type == "docker":
+            container_name = data.get("container")
+
+            if not container_name:
+                return jsonify({"error": "Container name is required"}), 400
+
+            result = checker.manager.stop_docker_container(container_name)
+            return jsonify(result)
+
+        else:
+            return jsonify({"error": f"Invalid stop service type: {service_type}"}), 400
+
+    except Exception as e:
+        print(f"Error in stop_service: {str(e)}")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
+
+# ... rest of existing routes remain the same ...
 
 
 @app.route("/api/services/<category>")
