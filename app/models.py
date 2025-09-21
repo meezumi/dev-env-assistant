@@ -37,3 +37,9 @@ class ServiceResult:
             self.last_checked = datetime.now()
         if self.additional_info is None:
             self.additional_info = {}
+
+    def to_dict(self):
+        """Convert to a JSON-serializable dictionary"""
+        result_dict = asdict(self)
+        result_dict['last_checked'] = self.last_checked.isoformat()
+        return result_dict

@@ -1,227 +1,904 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        .service-card { transition: all 0.3s ease; }
-        .service-card:hover { transform: translateY(-5px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .status-online { background-color: #28a745; color: white; }
-        .status-offline { background-color: #dc3545; color: white; }
-        .status-unhealthy { background-color: #ffc107; color: black; }
-        .status-timeout { background-color: #6c757d; color: white; }
-        .status-error { background-color: #843c0c; color: white; }
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --accent-primary: #238636;
+            --accent-secondary: #1f6feb;
+            --accent-danger: #da3633;
+            --accent-warning: #fb8500;
+            --border-color: #30363d;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --gradient: linear-gradient(135deg, #1f6feb 0%, #238636 100%);
+        }
+
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 20% 80%, rgba(31, 111, 235, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(35, 134, 54, 0.1) 0%, transparent 50%);
+            transition: all 0.3s ease;
+        }
+
+        .navbar {
+            background: var(--bg-secondary) !important;
+            border-bottom: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--text-primary) !important;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+        }
+
+        .service-card {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .service-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 2px;
+            background: var(--gradient);
+            transition: left 0.5s ease;
+        }
+
+        .service-card:hover::before {
+            left: 0;
+        }
+
+        .btn {
+            border-radius: 8px;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            transition: all 0.2s ease;
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: var(--accent-secondary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1a5feb;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(31, 111, 235, 0.3);
+        }
+
+        .btn-success {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #2ea043;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(35, 134, 54, 0.3);
+        }
+
+        .btn-outline-primary {
+            border: 1px solid var(--accent-secondary);
+            color: var(--accent-secondary);
+            background: transparent;
+        }
+
+        .btn-outline-primary:hover {
+            background: var(--accent-secondary);
+            color: white;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status-online {
+            background: rgba(35, 134, 54, 0.2);
+            color: #3fb950;
+            border: 1px solid rgba(35, 134, 54, 0.3);
+        }
+
+        .status-offline {
+            background: rgba(218, 54, 51, 0.2);
+            color: #f85149;
+            border: 1px solid rgba(218, 54, 51, 0.3);
+        }
+
+        .status-checking {
+            background: rgba(251, 133, 0, 0.2);
+            color: #fb8500;
+            border: 1px solid rgba(251, 133, 0, 0.3);
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: currentColor;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 20px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .theme-toggle:hover {
+            background: var(--bg-secondary);
+        }
+
+        .result-card {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .result-card pre {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            overflow-x: auto;
+        }
+
+        .service-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 2rem 0;
+        }
+
+        .form-control, .form-select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 8px;
+        }
+
+        .form-control:focus, .form-select:focus {
+            background: var(--bg-tertiary);
+            border-color: var(--accent-secondary);
+            color: var(--text-primary);
+            box-shadow: 0 0 0 0.2rem rgba(31, 111, 235, 0.25);
+        }
+
+        .form-label {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* Theme-specific elements */
+        .page-title {
+            color: var(--text-primary);
+            transition: color 0.3s ease;
+        }
+
+        .page-subtitle {
+            color: var(--text-secondary);
+            transition: color 0.3s ease;
+        }
+
+        .category-title {
+            color: var(--text-primary);
+            transition: color 0.3s ease;
+        }
+
+        .nav-link {
+            color: var(--text-primary) !important;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: var(--accent-secondary) !important;
+        }
+
+        .card-title {
+            color: var(--text-primary);
+            transition: color 0.3s ease;
+        }
+
+        .card-header h5 {
+            color: var(--text-primary);
+            transition: color 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .service-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .quick-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .quick-actions .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
     </style>
 </head>
-<body class="bg-light">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
-            <a class="navbar-brand" href="#">🚀 Dev Environment Assistant</a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="/monitoring/status" target="_blank">📊 Monitoring</a>
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-rocket me-2"></i>
+                Dev Environment Assistant
+            </a>
+            <div class="navbar-nav ms-auto d-flex align-items-center">
+                <button class="theme-toggle me-3" onclick="toggleTheme()">
+                    <i class="fas fa-moon" id="theme-icon"></i>
+                </button>
+                <a class="nav-link" href="/monitoring/status" target="_blank">
+                    <i class="fas fa-chart-line me-1"></i>
+                    Monitoring
+                </a>
             </div>
         </div>
     </nav>
 
-    <div class="container">
-        <div class="row">
-            <div class="col-md-12">
-                <h1 class="display-4 text-center mb-4">Service Health Dashboard</h1>
-                <p class="lead text-center mb-5">Monitor and manage your development environment services</p>
-            </div>
+    <div class="container mt-4">
+        <div class="text-center mb-5">
+            <h1 class="display-4 fw-bold mb-3 page-title">Service Health Dashboard</h1>
+            <p class="lead page-subtitle">Monitor and manage your development environment services</p>
+        </div>
+
+        <div class="quick-actions">
+            <button class="btn btn-success" onclick="checkAllServices()">
+                <i class="fas fa-search me-2"></i>
+                <span>Scan All Services</span>
+                <span class="loading-spinner d-none ms-2"></span>
+            </button>
+            <button class="btn btn-primary" onclick="togglePortForm()">
+                <i class="fas fa-plug me-2"></i>
+                Test Port
+            </button>
+            <button class="btn btn-info" onclick="toggleHttpForm()">
+                <i class="fas fa-globe me-2"></i>
+                Test HTTP
+            </button>
         </div>
 
         <div id="services-container">
-            <div class="text-center">
-                <div class="spinner-border" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p>Loading services...</p>
+            <div class="text-center py-5">
+                <div class="loading-spinner" style="width: 2rem; height: 2rem; border-width: 3px;"></div>
+                <p class="mt-3 text-secondary">Loading services...</p>
             </div>
         </div>
 
-        <div class="row mt-5">
-            <div class="col-md-12">
-                <div class="card">
+        <div id="test-forms" class="row mt-4" style="display: none;">
+            <div class="col-md-6 mb-4">
+                <div class="card slide-up">
                     <div class="card-header">
-                        <h5>Quick Actions</h5>
+                        <h5 class="mb-0">
+                            <i class="fas fa-plug me-2"></i>
+                            Test Port Service
+                        </h5>
                     </div>
-                    <div class="card-body">
-                        <button class="btn btn-success" onclick="checkAllServices()">🔍 Scan All Services</button>
-                        <button class="btn btn-primary" onclick="checkPortService()">🔌 Test Port</button>
-                        <button class="btn btn-info" onclick="checkHttpService()">🌐 Test HTTP</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row mt-4" id="test-forms" style="display: none;">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">Test Port Service</div>
                     <div class="card-body">
                         <form id="port-test-form">
                             <div class="mb-3">
                                 <label for="port" class="form-label">Port</label>
-                                <input type="number" class="form-control" id="port" required min="1" max="65535">
+                                <input type="number" class="form-control" id="port" required min="1" max="65535" placeholder="e.g., 3000">
                             </div>
                             <div class="mb-3">
                                 <label for="host" class="form-label">Host</label>
-                                <input type="text" class="form-control" id="host" value="localhost">
+                                <input type="text" class="form-control" id="host" value="localhost" placeholder="localhost">
                             </div>
-                            <button type="submit" class="btn btn-primary">Test Port</button>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <span class="button-text">Test Port</span>
+                                <span class="loading-spinner d-none ms-2"></span>
+                            </button>
                         </form>
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">Test HTTP Service</div>
+            <div class="col-md-6 mb-4">
+                <div class="card slide-up">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-globe me-2"></i>
+                            Test HTTP Service
+                        </h5>
+                    </div>
                     <div class="card-body">
                         <form id="http-test-form">
                             <div class="mb-3">
                                 <label for="url" class="form-label">URL</label>
-                                <input type="url" class="form-control" id="url" required>
+                                <input type="url" class="form-control" id="url" required placeholder="http://localhost:3000">
                             </div>
-                            <button type="submit" class="btn btn-primary">Test HTTP</button>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <span class="button-text">Test HTTP</span>
+                                <span class="loading-spinner d-none ms-2"></span>
+                            </button>
                         </form>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="row mt-4">
-            <div class="col-md-12">
-                <div class="card" id="result-card" style="display: none;">
-                    <div class="card-header">
-                        <h6>Latest Test Results</h6>
-                    </div>
-                    <div class="card-body">
-                        <pre id="result-display"></pre>
-                    </div>
+        <div id="result-container" class="mt-4" style="display: none;">
+            <div class="card fade-in">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Test Results
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div id="result-display" class="result-card"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Load services on page load
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+        // Global state
+        let currentTheme = 'dark';
+        let isLoading = false;
+
+        // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
+            initializeTheme();
             loadServices();
+            setupEventListeners();
         });
 
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            setTheme(savedTheme);
+        }
+
+        function toggleTheme() {
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            setTheme(newTheme);
+        }
+
+        function setTheme(theme) {
+            currentTheme = theme;
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            
+            const themeIcon = document.getElementById('theme-icon');
+            themeIcon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            
+            if (theme === 'light') {
+                // Light theme colors
+                document.documentElement.style.setProperty('--bg-primary', '#ffffff');
+                document.documentElement.style.setProperty('--bg-secondary', '#f6f8fa');
+                document.documentElement.style.setProperty('--bg-tertiary', '#ffffff');
+                document.documentElement.style.setProperty('--text-primary', '#24292f');
+                document.documentElement.style.setProperty('--text-secondary', '#656d76');
+                document.documentElement.style.setProperty('--border-color', '#d0d7de');
+                document.documentElement.style.setProperty('--shadow', '0 8px 32px rgba(0, 0, 0, 0.1)');
+                
+                // Update body background for light theme
+                document.body.style.backgroundImage = `
+                    radial-gradient(circle at 20% 80%, rgba(31, 111, 235, 0.05) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(35, 134, 54, 0.05) 0%, transparent 50%)
+                `;
+            } else {
+                // Dark theme colors
+                document.documentElement.style.setProperty('--bg-primary', '#0d1117');
+                document.documentElement.style.setProperty('--bg-secondary', '#161b22');
+                document.documentElement.style.setProperty('--bg-tertiary', '#21262d');
+                document.documentElement.style.setProperty('--text-primary', '#f0f6fc');
+                document.documentElement.style.setProperty('--text-secondary', '#8b949e');
+                document.documentElement.style.setProperty('--border-color', '#30363d');
+                document.documentElement.style.setProperty('--shadow', '0 8px 32px rgba(0, 0, 0, 0.3)');
+                
+                // Update body background for dark theme
+                document.body.style.backgroundImage = `
+                    radial-gradient(circle at 20% 80%, rgba(31, 111, 235, 0.1) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(35, 134, 54, 0.1) 0%, transparent 50%)
+                `;
+            }
+        }
+
+        function setupEventListeners() {
+            document.getElementById('port-test-form').addEventListener('submit', handlePortTest);
+            document.getElementById('http-test-form').addEventListener('submit', handleHttpTest);
+        }
+
+        function showLoading(button) {
+            if (button) {
+                const spinner = button.querySelector('.loading-spinner');
+                const text = button.querySelector('.button-text') || button.querySelector('span:first-child');
+                
+                if (spinner) spinner.classList.remove('d-none');
+                button.disabled = true;
+                
+                if (text && text !== button) {
+                    const originalText = text.textContent;
+                    text.setAttribute('data-original-text', originalText);
+                    text.textContent = 'Testing...';
+                }
+            }
+        }
+
+        function hideLoading(button, originalText) {
+            if (button) {
+                const spinner = button.querySelector('.loading-spinner');
+                const text = button.querySelector('.button-text') || button.querySelector('span:first-child');
+                
+                if (spinner) spinner.classList.add('d-none');
+                button.disabled = false;
+                
+                if (text && text !== button) {
+                    const savedText = text.getAttribute('data-original-text');
+                    text.textContent = savedText || originalText || 'Check';
+                }
+            }
+        }
+
         function loadServices() {
-            fetch('/api/services/web_dev')
-                .then(response => response.json())
+            fetch('/api/services/all')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    const container = document.getElementById('services-container');
-                    let html = '<div class="row">';
-
-                    Object.keys(data).forEach(category => {
-                        html += '<div class="col-md-12 mb-4"><h4>' + category.replace('_', ' ').toUpperCase() + '</h4></div>';
-                        data[category].forEach(service => {
-                            html += '<div class="col-md-3 mb-3">';
-                            html += '<div class="card service-card">';
-                            html += '<div class="card-body">';
-                            html += '<h6 class="card-title">' + service.name + '</h6>';
-                            html += '<button class="btn btn-sm btn-outline-primary check-btn" data-type="' + service.type + '" data-url="' + (service.url || '') + '" data-port="' + (service.port || '') + '">Check Status</button>';
-                            html += '</div></div></div>';
-                        });
-                    });
-
-                    html += '</div>';
-                    container.innerHTML = html;
-
-                    // Add event listeners to check buttons
-                    document.querySelectorAll('.check-btn').forEach(btn => {
-                        btn.addEventListener('click', function() {
-                            const type = this.dataset.type;
-                            const url = this.dataset.url;
-                            const port = this.dataset.port;
-
-                            if (type === 'http' && url) {
-                                checkHttpService(url);
-                            } else if (type === 'port' && port) {
-                                checkPortService(port);
-                            }
-                        });
-                    });
+                    console.log('Services loaded:', data);
+                    renderServices(data);
                 })
                 .catch(error => {
-                    document.getElementById('services-container').innerHTML = '<div class="alert alert-danger">Error loading services</div>';
+                    console.error('Error loading services:', error);
+                    showError(`Failed to load services: ${error.message}`);
                 });
         }
 
-        function checkAllServices() {
-            fetch('/api/check/batch', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    services: [
-                        {name: "React Dev", type: "http", url: "http://localhost:3000"},
-                        {name: "Django", type: "http", url: "http://localhost:8000"},
-                        {name: "PostgreSQL", type: "port", port: 5432},
-                        {name: "Redis", type: "port", port: 6379}
-                    ]
-                })
-            })
-            .then(response => response.json())
-            .then(data => displayResult(data))
-            .catch(error => alert('Error: ' + error.message));
+        function renderServices(servicesData) {
+            const container = document.getElementById('services-container');
+            
+            if (!servicesData || Object.keys(servicesData).length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fas fa-info-circle fa-3x text-secondary mb-3"></i>
+                        <h5 class="page-title">No services configured</h5>
+                        <p class="page-subtitle">Add services to your configuration file to get started.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            
+            Object.entries(servicesData).forEach(([category, services]) => {
+                if (services && services.length > 0) {
+                    html += `
+                        <div class="mb-5">
+                            <h4 class="mb-3 category-title">
+                                <i class="fas fa-folder me-2"></i>
+                                ${category.replace('_', ' ').toUpperCase()}
+                            </h4>
+                            <div class="service-grid">
+                    `;
+                    
+                    services.forEach(service => {
+                        html += `
+                            <div class="card service-card fade-in">
+                                <div class="card-body">
+                                    <h6 class="card-title mb-3">
+                                        <i class="fas ${getServiceIcon(service.type)} me-2"></i>
+                                        ${service.name}
+                                    </h6>
+                                    <p class="text-secondary small mb-3">
+                                        ${service.type === 'http' ? service.url : `Port ${service.port}`}
+                                    </p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="status-indicator status-checking" id="status-${getServiceId(service)}">
+                                            <i class="fas fa-clock"></i>
+                                            Ready
+                                        </span>
+                                        <button class="btn btn-outline-primary btn-sm check-btn" 
+                                                data-service='${JSON.stringify(service)}'
+                                                onclick="checkSingleService(this)">
+                                            <i class="fas fa-play me-1"></i>
+                                            <span>Check</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div></div>';
+                }
+            });
+            
+            container.innerHTML = html;
         }
 
-        function checkPortService(port) {
+        function getServiceIcon(type) {
+            const icons = {
+                'http': 'fa-globe',
+                'port': 'fa-plug',
+                'tcp': 'fa-network-wired'
+            };
+            return icons[type] || 'fa-cog';
+        }
+
+        function getServiceId(service) {
+            return `${service.name.replace(/\s+/g, '-').toLowerCase()}-${service.type}`;
+        }
+
+        function checkSingleService(button) {
+            try {
+                const service = JSON.parse(button.dataset.service);
+                const statusElement = document.getElementById(`status-${getServiceId(service)}`);
+                
+                console.log('Checking service:', service);
+                
+                // Update UI to show checking state
+                updateServiceStatus(statusElement, 'checking', 'Checking...');
+                showLoading(button);
+                
+                let endpoint, data;
+                
+                if (service.type === 'http') {
+                    endpoint = '/api/check/http';
+                    data = { url: service.url };
+                } else if (service.type === 'port') {
+                    endpoint = '/api/check/port';
+                    data = { port: service.port, host: service.host || 'localhost' };
+                } else {
+                    throw new Error(`Unsupported service type: ${service.type}`);
+                }
+                
+                console.log('Making request to:', endpoint, 'with data:', data);
+                
+                fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                })
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    console.log('Service check result:', result);
+                    updateServiceStatus(statusElement, result.status, getStatusText(result));
+                    hideLoading(button, 'Check');
+                })
+                .catch(error => {
+                    console.error('Error checking service:', error);
+                    updateServiceStatus(statusElement, 'error', `Error: ${error.message}`);
+                    hideLoading(button, 'Check');
+                });
+            } catch (error) {
+                console.error('Error in checkSingleService:', error);
+                const service = JSON.parse(button.dataset.service);
+                const statusElement = document.getElementById(`status-${getServiceId(service)}`);
+                updateServiceStatus(statusElement, 'error', 'Error');
+                hideLoading(button, 'Check');
+            }
+        }
+
+        function updateServiceStatus(element, status, text) {
+            if (!element) {
+                console.warn('Status element not found');
+                return;
+            }
+            
+            // Clear all existing classes except the base class
+            element.className = 'status-indicator';
+            
+            // Define status classes (without spaces)
+            const statusClasses = {
+                'open': 'status-online',
+                'up': 'status-online',
+                'online': 'status-online',
+                'closed': 'status-offline',
+                'down': 'status-offline',
+                'offline': 'status-offline',
+                'checking': 'status-checking',
+                'error': 'status-offline',
+                'timeout': 'status-offline'
+            };
+            
+            // Add the appropriate status class
+            const statusClass = statusClasses[status] || 'status-offline';
+            element.classList.add(statusClass);
+            
+            // Add pulse animation for checking state
+            if (status === 'checking') {
+                element.classList.add('pulse');
+            }
+            
+            // Update icon and text
+            const icons = {
+                'open': 'fa-check-circle',
+                'up': 'fa-check-circle',
+                'online': 'fa-check-circle',
+                'closed': 'fa-times-circle',
+                'down': 'fa-times-circle',
+                'offline': 'fa-times-circle',
+                'checking': 'fa-spinner fa-spin',
+                'error': 'fa-exclamation-triangle',
+                'timeout': 'fa-clock'
+            };
+            
+            element.innerHTML = `<i class="fas ${icons[status] || 'fa-question-circle'}"></i> ${text}`;
+        }
+
+        function getStatusText(result) {
+            if (result.status === 'open' || result.status === 'up') {
+                return result.response_time ? `Online (${Math.round(result.response_time)}ms)` : 'Online';
+            }
+            return result.error_message || result.status.charAt(0).toUpperCase() + result.status.slice(1);
+        }
+
+        function checkAllServices() {
+            const button = event.target;
+            showLoading(button);
+            
+            fetch('/api/services/all')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(allServices => {
+                    const services = [];
+                    
+                    Object.values(allServices).forEach(categoryServices => {
+                        if (Array.isArray(categoryServices)) {
+                            categoryServices.forEach(service => {
+                                services.push(service);
+                            });
+                        }
+                    });
+                    
+                    if (services.length === 0) {
+                        throw new Error('No services configured');
+                    }
+                    
+                    return fetch('/api/check/batch', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ services })
+                    });
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    displayResult(data);
+                    hideLoading(button, 'Scan All Services');
+                    
+                    // Update individual service cards with results
+                    if (data.services) {
+                        data.services.forEach(result => {
+                            updateServiceCardStatus(result);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showError(`Failed to scan services: ${error.message}`);
+                    hideLoading(button, 'Scan All Services');
+                });
+        }
+
+        function updateServiceCardStatus(result) {
+            // Find the service card that matches this result
+            const serviceCards = document.querySelectorAll('.service-card');
+            serviceCards.forEach(card => {
+                const titleElement = card.querySelector('.card-title');
+                if (titleElement) {
+                    const titleText = titleElement.textContent.trim();
+                    const resultName = result.name.replace('Port ', '').replace(' Service Check', '').replace('HTTP Service: http://localhost:', '').replace('HTTP Service: ', '');
+                    
+                    if (titleText.includes(resultName) || result.name.includes(titleText)) {
+                        const statusElement = card.querySelector('.status-indicator');
+                        if (statusElement) {
+                            updateServiceStatus(statusElement, result.status, getStatusText(result));
+                        }
+                    }
+                }
+            });
+        }
+
+        function togglePortForm() {
+            const forms = document.getElementById('test-forms');
+            if (forms.style.display === 'none') {
+                forms.style.display = 'block';
+                forms.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                forms.style.display = 'none';
+            }
+        }
+
+        function toggleHttpForm() {
+            togglePortForm();
+        }
+
+        function handlePortTest(e) {
+            e.preventDefault();
+            const button = e.target.querySelector('button[type="submit"]');
+            const port = document.getElementById('port').value;
+            const host = document.getElementById('host').value;
+            
+            showLoading(button);
+            
             fetch('/api/check/port', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({port: parseInt(port), host: "localhost"})
+                body: JSON.stringify({port: parseInt(port), host: host})
             })
-            .then(response => response.json())
-            .then(data => displayResult(data))
-            .catch(error => alert('Error: ' + error.message));
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                displayResult(data);
+                hideLoading(button, 'Test Port');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError(`Failed to test port: ${error.message}`);
+                hideLoading(button, 'Test Port');
+            });
         }
 
-        function checkHttpService(url) {
-            if (!url) {
-                url = document.getElementById('url').value;
-            }
+        function handleHttpTest(e) {
+            e.preventDefault();
+            const button = e.target.querySelector('button[type="submit"]');
+            const url = document.getElementById('url').value;
+            
+            showLoading(button);
+            
             fetch('/api/check/http', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({url: url})
             })
-            .then(response => response.json())
-            .then(data => displayResult(data))
-            .catch(error => alert('Error: ' + error.message));
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                displayResult(data);
+                hideLoading(button, 'Test HTTP');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError(`Failed to test HTTP service: ${error.message}`);
+                hideLoading(button, 'Test HTTP');
+            });
         }
-
-        document.getElementById('port-test-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const port = document.getElementById('port').value;
-            checkPortService(port);
-        });
-
-        document.getElementById('http-test-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const url = document.getElementById('url').value;
-            checkHttpService(url);
-        });
 
         function displayResult(data) {
-            const resultCard = document.getElementById('result-card');
-            const resultDisplay = document.getElementById('result-display');
-            resultDisplay.textContent = JSON.stringify(data, null, 2);
-            resultCard.style.display = 'block';
-            resultCard.scrollIntoView({behavior: 'smooth'});
+            const container = document.getElementById('result-container');
+            const display = document.getElementById('result-display');
+            
+            display.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            container.style.display = 'block';
+            container.scrollIntoView({behavior: 'smooth'});
         }
 
-        // Show/hide test forms
-        document.querySelector('button[onclick*="Port"]').addEventListener('click', function() {
-            document.getElementById('test-forms').style.display = 'block';
-        });
+        function showError(message) {
+            const container = document.getElementById('services-container');
+            container.innerHTML = `
+                <div class="alert alert-danger fade-in" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ${message}
+                    <button class="btn btn-outline-danger btn-sm ms-3" onclick="loadServices()">
+                        <i class="fas fa-redo me-1"></i>
+                        Retry
+                    </button>
+                </div>
+            `;
+        }
     </script>
 </body>
 </html>

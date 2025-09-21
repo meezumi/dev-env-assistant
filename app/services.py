@@ -1,4 +1,3 @@
-
 import socket
 import time
 import threading
@@ -7,6 +6,7 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import asdict
 
 import requests
 from app.models import ServiceResult

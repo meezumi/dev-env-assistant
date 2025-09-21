@@ -1,272 +1,133 @@
-
 import os
 import json
 from app import app
 
-CONFIG_FILE = 'dev_assistant_config.json'
+CONFIG_FILE = "dev_assistant_config.json"
 
-def create_static_files():
-    """Create necessary static files like templates and config"""
-    # Create templates directory
-    os.makedirs("app/templates", exist_ok=True)
 
-    # Create dashboard template
-    dashboard_html = """<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .service-card { transition: all 0.3s ease; }
-        .service-card:hover { transform: translateY(-5px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .status-online { background-color: #28a745; color: white; }
-        .status-offline { background-color: #dc3545; color: white; }
-        .status-unhealthy { background-color: #ffc107; color: black; }
-        .status-timeout { background-color: #6c757d; color: white; }
-        .status-error { background-color: #843c0c; color: white; }
-    </style>
-</head>
-<body class="bg-light">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
-        <div class="container">
-            <a class="navbar-brand" href="#">🚀 Dev Environment Assistant</a>
-            <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="/monitoring/status" target="_blank">📊 Monitoring</a>
-            </div>
-        </div>
-    </nav>
+def ensure_directories():
+    """Ensure necessary directories exist"""
+    directories = ["app/templates", "app/static/css", "app/static/js"]
 
-    <div class="container">
-        <div class="row">
-            <div class="col-md-12">
-                <h1 class="display-4 text-center mb-4">Service Health Dashboard</h1>
-                <p class="lead text-center mb-5">Monitor and manage your development environment services</p>
-            </div>
-        </div>
+    for directory in directories:
+        os.makedirs(directory, exist_ok=True)
 
-        <div id="services-container">
-            <div class="text-center">
-                <div class="spinner-border" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p>Loading services...</p>
-            </div>
-        </div>
 
-        <div class="row mt-5">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Quick Actions</h5>
-                    </div>
-                    <div class="card-body">
-                        <button class="btn btn-success" onclick="checkAllServices()">🔍 Scan All Services</button>
-                        <button class="btn btn-primary" onclick="checkPortService()">🔌 Test Port</button>
-                        <button class="btn btn-info" onclick="checkHttpService()">🌐 Test HTTP</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row mt-4" id="test-forms" style="display: none;">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">Test Port Service</div>
-                    <div class="card-body">
-                        <form id="port-test-form">
-                            <div class="mb-3">
-                                <label for="port" class="form-label">Port</label>
-                                <input type="number" class="form-control" id="port" required min="1" max="65535">
-                            </div>
-                            <div class="mb-3">
-                                <label for="host" class="form-label">Host</label>
-                                <input type="text" class="form-control" id="host" value="localhost">
-                            </div>
-                            <button type="submit" class="btn btn-primary">Test Port</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">Test HTTP Service</div>
-                    <div class="card-body">
-                        <form id="http-test-form">
-                            <div class="mb-3">
-                                <label for="url" class="form-label">URL</label>
-                                <input type="url" class="form-control" id="url" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary">Test HTTP</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="row mt-4">
-            <div class="col-md-12">
-                <div class="card" id="result-card" style="display: none;">
-                    <div class="card-header">
-                        <h6>Latest Test Results</h6>
-                    </div>
-                    <div class="card-body">
-                        <pre id="result-display"></pre>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Load services on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            loadServices();
-        });
-
-        function loadServices() {
-            fetch('/api/services/web_dev')
-                .then(response => response.json())
-                .then(data => {
-                    const container = document.getElementById('services-container');
-                    let html = '<div class="row">';
-
-                    Object.keys(data).forEach(category => {
-                        html += '<div class="col-md-12 mb-4"><h4>' + category.replace('_', ' ').toUpperCase() + '</h4></div>';
-                        data[category].forEach(service => {
-                            html += '<div class="col-md-3 mb-3">';
-                            html += '<div class="card service-card">';
-                            html += '<div class="card-body">';
-                            html += '<h6 class="card-title">' + service.name + '</h6>';
-                            html += '<button class="btn btn-sm btn-outline-primary check-btn" data-type="' + service.type + '" data-url="' + (service.url || '') + '" data-port="' + (service.port || '') + '">Check Status</button>';
-                            html += '</div></div></div>';
-                        });
-                    });
-
-                    html += '</div>';
-                    container.innerHTML = html;
-
-                    // Add event listeners to check buttons
-                    document.querySelectorAll('.check-btn').forEach(btn => {
-                        btn.addEventListener('click', function() {
-                            const type = this.dataset.type;
-                            const url = this.dataset.url;
-                            const port = this.dataset.port;
-
-                            if (type === 'http' && url) {
-                                checkHttpService(url);
-                            } else if (type === 'port' && port) {
-                                checkPortService(port);
-                            }
-                        });
-                    });
-                })
-                .catch(error => {
-                    document.getElementById('services-container').innerHTML = '<div class="alert alert-danger">Error loading services</div>';
-                });
-        }
-
-        function checkAllServices() {
-            fetch('/api/check/batch', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    services: [
-                        {name: "React Dev", type: "http", url: "http://localhost:3000"},
-                        {name: "Django", type: "http", url: "http://localhost:8000"},
-                        {name: "PostgreSQL", type: "port", port: 5432},
-                        {name: "Redis", type: "port", port: 6379}
-                    ]
-                })
-            })
-            .then(response => response.json())
-            .then(data => displayResult(data))
-            .catch(error => alert('Error: ' + error.message));
-        }
-
-        function checkPortService(port) {
-            fetch('/api/check/port', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({port: parseInt(port), host: "localhost"})
-            })
-            .then(response => response.json())
-            .then(data => displayResult(data))
-            .catch(error => alert('Error: ' + error.message));
-        }
-
-        function checkHttpService(url) {
-            if (!url) {
-                url = document.getElementById('url').value;
-            }
-            fetch('/api/check/http', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({url: url})
-            })
-            .then(response => response.json())
-            .then(data => displayResult(data))
-            .catch(error => alert('Error: ' + error.message));
-        }
-
-        document.getElementById('port-test-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const port = document.getElementById('port').value;
-            checkPortService(port);
-        });
-
-        document.getElementById('http-test-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const url = document.getElementById('url').value;
-            checkHttpService(url);
-        });
-
-        function displayResult(data) {
-            const resultCard = document.getElementById('result-card');
-            const resultDisplay = document.getElementById('result-display');
-            resultDisplay.textContent = JSON.stringify(data, null, 2);
-            resultCard.style.display = 'block';
-            resultCard.scrollIntoView({behavior: 'smooth'});
-        }
-
-        // Show/hide test forms
-        document.querySelector('button[onclick*="Port"]').addEventListener('click', function() {
-            document.getElementById('test-forms').style.display = 'block';
-        });
-    </script>
-</body>
-</html>"""
-
-    with open("app/templates/dashboard.html", "w", encoding="utf-8") as f:
-        f.write(dashboard_html)
-
-    # Create empty config file if it doesn't exist
+def create_config_file():
+    """Create default config file if it doesn't exist"""
     if not os.path.exists(CONFIG_FILE):
+        default_config = {
+            "services": {
+                "web_dev": [
+                    {
+                        "name": "React Dev Server",
+                        "type": "http",
+                        "url": "http://localhost:3000",
+                    },
+                    {
+                        "name": "Vue Dev Server",
+                        "type": "http",
+                        "url": "http://localhost:8080",
+                    },
+                    {
+                        "name": "Angular Dev Server",
+                        "type": "http",
+                        "url": "http://localhost:4200",
+                    },
+                    {
+                        "name": "Next.js Dev Server",
+                        "type": "http",
+                        "url": "http://localhost:3000",
+                    },
+                ],
+                "backend": [
+                    {
+                        "name": "Express Server",
+                        "type": "http",
+                        "url": "http://localhost:3000",
+                    },
+                    {
+                        "name": "Django Dev Server",
+                        "type": "http",
+                        "url": "http://localhost:8000",
+                    },
+                    {
+                        "name": "Flask Dev Server",
+                        "type": "http",
+                        "url": "http://localhost:5000",
+                    },
+                    {
+                        "name": "FastAPI Server",
+                        "type": "http",
+                        "url": "http://localhost:8000",
+                    },
+                    {
+                        "name": "Rails Server",
+                        "type": "http",
+                        "url": "http://localhost:3000",
+                    },
+                ],
+                "databases": [
+                    {"name": "PostgreSQL", "type": "port", "port": 5432},
+                    {"name": "MySQL", "type": "port", "port": 3306},
+                    {"name": "MongoDB", "type": "port", "port": 27017},
+                    {"name": "Redis", "type": "port", "port": 6379},
+                ],
+                "tools": [
+                    {
+                        "name": "Docker Engine API",
+                        "type": "http",
+                        "url": "http://localhost:2375",
+                    },
+                    {
+                        "name": "Elasticsearch",
+                        "type": "http",
+                        "url": "http://localhost:9200",
+                    },
+                    {
+                        "name": "RabbitMQ Management",
+                        "type": "http",
+                        "url": "http://localhost:15672",
+                    },
+                    {"name": "Mailhog", "type": "http", "url": "http://localhost:8025"},
+                ],
+            },
+            "monitoring": {
+                "enabled": True,
+                "check_interval": 60,
+                "alert_thresholds": {
+                    "response_time_warning": 2000,
+                    "downtime_warning_threshold": 5,
+                },
+            },
+            "notifications": {
+                "email_enabled": False,
+                "slack_enabled": False,
+                "webhook_enabled": False,
+            },
+        }
+
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-            json.dump({
-                "services": {
-                    "web_dev": [],
-                    "backend": [],
-                    "databases": [],
-                    "tools": []
-                },
-                "monitoring": {
-                    "enabled": True,
-                    "check_interval": 60,
-                    "alert_thresholds": {
-                        "response_time_warning": 2000,
-                        "downtime_warning_threshold": 5
-                    }
-                },
-                "notifications": {
-                    "email_enabled": False,
-                    "slack_enabled": False,
-                    "webhook_enabled": False
-                }
-            }, f, indent=2)
+            json.dump(default_config, f, indent=2)
+
+        print(f"Created default configuration file: {CONFIG_FILE}")
+
+
+def main():
+    """Main application entry point"""
+    print("🚀 Starting Dev Environment Assistant...")
+
+    # Setup
+    ensure_directories()
+    create_config_file()
+
+    print("✅ Setup complete!")
+    print("🌐 Starting web server on http://localhost:5000")
+    print("📊 Access the dashboard at: http://localhost:5000")
+
+    # Start the Flask application
+    app.run(debug=True, host="0.0.0.0", port=5000)
+
 
 if __name__ == "__main__":
-    create_static_files()
-    app.run(debug=True)
+    main()
