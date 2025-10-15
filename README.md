@@ -2,6 +2,8 @@
 
 A simple web application to monitor the health and status of your local development environment.
 
+![alt text](<Screenshot 2025-09-21 211214.png>)
+
 ---
 
 ## Overview
@@ -102,3 +104,4 @@ You can add your own services to the `services` section of the JSON file. For ex
   }
 }
 ```
+![alt text](<Screenshot 2025-09-21 212218.png>)
